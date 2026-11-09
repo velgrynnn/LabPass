@@ -13,6 +13,18 @@ test('Alur lengkap, hak akses, hash identitas, arsip, dan bukti EVM nyata',async
  const staff=db.prepare("SELECT * FROM users WHERE id='staff-zaenal'").get(),a=db.prepare("SELECT * FROM users WHERE id='mhs-1'").get(),b=db.prepare("SELECT * FROM users WHERE id='mhs-2'").get();
  const body={asset_id:'LP-RL-001',purpose:'Pengujian dummy',lecturer:'Dosen dummy',start_date:'2026-11-08',due_date:'2026-11-09'};
  const loan=s.createLoan(a,body);const competing=s.createLoan(b,body);
+ await t.test('pengajuan dari tab lama ditolak saat akun di browser berganti', () => {
+   const before = db.prepare('SELECT count(*) AS count FROM loans').get().count;
+   for (const activeAccount of [staff, b]) {
+     assert.throws(
+       () => s.createLoan(activeAccount, { ...body, expected_borrower_id: a.id }),
+       { status: 409, message: /Akun aktif di browser ini sudah berganti/ }
+     );
+   }
+   assert.equal(db.prepare('SELECT count(*) AS count FROM loans').get().count, before);
+   const matching = s.createLoan(a, { ...body, expected_borrower_id: a.id });
+   assert.equal(matching.borrower_id, a.id);
+ });
  await t.test('data dummy dan akses transaksi',()=>{assert.equal(s.listAssets().length,8);assert.throws(()=>s.detail(loan.id,b),/Tidak berhak/);assert.throws(()=>s.action(loan.id,a,'approve'),/Peran/);assert.throws(()=>s.createLoan(a,{...body,due_date:'2026-01-01'}),/Tanggal/);assert.throws(()=>s.createLoan(a,{...body,start_date:'2026-02-30'}),/Tanggal/);});
  await t.test('persetujuan memesan alat secara eksklusif',()=>{s.action(loan.id,staff,'approve');assert.equal(s.asset(body.asset_id).status,'RESERVED');assert.throws(()=>s.action(competing.id,staff,'approve'),/sudah dipesan/);assert.throws(()=>s.action(loan.id,a,'confirm-pickup'),/status/);});
  const check={condition:'Baik',notes:'Paket lengkap',components:s.asset(body.asset_id).components.map(c=>({id:c.id,received:c.quantity}))};

@@ -40,7 +40,33 @@ function renderDetail(el){const d=state.detail,l=d.loan,staff=state.user.role===
  el.innerHTML=`<button class="back" data-nav="loans">← Kembali ke peminjaman</button><div class="detail-title"><div><div class="eyebrow">${esc(l.id)}</div><h1>${esc(l.asset_name)}</h1><p class="muted">${esc(l.asset_id)} · ${esc(l.borrower_name)}</p></div>${badge(l.status)}</div><div class="action-bar">${actions||'<p>Semua tindakan saat ini telah tercatat. Tunggu langkah berikutnya atau lihat riwayat.</p>'}</div><div class="info-grid"><section class="surface"><h3>Detail pengajuan</h3><dl><dt>Tujuan</dt><dd>${esc(l.purpose)}</dd><dt>Dosen terkait</dt><dd>${esc(l.lecturer)}</dd><dt>Mulai</dt><dd>${date(l.start_date)}</dd><dt>Rencana kembali</dt><dd>${date(l.due_date)}</dd><dt>Kelengkapan standar</dt><dd>${d.asset.components.map(c=>`${esc(c.name)} (${c.quantity})`).join(', ')}</dd></dl>${l.rejection_note?`<div class="notice">Alasan penolakan: ${esc(l.rejection_note)}</div>`:''}</section><section class="surface"><h3>Rekaman kondisi</h3>${initial?`<h4>Serah terima awal</h4>${checks(initial)}`:'<p class="muted">Belum ada pemeriksaan serah terima.</p>'}${returned?`<h4>Pengembalian</h4>${checks(returned)}`:''}</section></div><section class="surface"><div class="section-heading"><h3>Foto bukti</h3>${!['CLOSED','REJECTED','CANCELLED'].includes(l.status)?'<label class="upload-button">+ Tambah foto<input id="photo-upload" type="file" accept="image/png,image/jpeg"></label>':''}</div><p class="small muted">PNG/JPEG maksimal 3 MB. Unggah sebelum konfirmasi agar foto masuk rekaman bukti berikutnya.</p><div class="photos">${d.attachments.map(a=>`<a href="/api/attachments/${a.id}" target="_blank" rel="noopener"><img src="/api/attachments/${a.id}" alt="${esc(a.filename)}"><small>${esc(a.filename)}</small></a>`).join('')||'<p class="muted">Belum ada foto. Foto bersifat opsional pada data dummy.</p>'}</div></section><section class="surface"><h3>Riwayat & bukti pencatatan</h3><div class="timeline">${d.events.map(e=>`<article class="event"><span class="event-dot"></span><div><div class="event-head"><h4>${esc(eventLabels[e.type]||e.type)}</h4><time>${new Date(e.created_at).toLocaleString('id-ID')}</time></div><p>${esc(e.note)}</p><small>${esc(e.actor_name)}</small>${e.evidence_id?`<div class="proof-row">${badge(e.chain_status)}<code title="${esc(e.digest)}">${short(e.digest)}</code><button class="text-button" data-verify="${e.evidence_id}">Verifikasi ↗</button><a class="text-button" href="/api/evidence/${e.evidence_id}/download">JSON ↓</a></div>${e.chain_error?`<p class="small warn-text">${esc(e.chain_error)}</p>`:''}`:''}</div></article>`).join('')}</div></section>`;
 }
 function openModal(html){modal.innerHTML=`<button class="modal-close" data-close aria-label="Tutup">×</button>${html}`;modal.showModal();}
-function showAsset(id){const a=state.assets.find(a=>a.id===id),today=new Date().toISOString().slice(0,10);openModal(`<div class="eyebrow">${esc(a.id)}</div><h2>${esc(a.name)}</h2>${badge(a.status)}<p class="muted">${esc(a.description)}</p><p><strong>Kelengkapan:</strong> ${a.components.map(c=>`${esc(c.name)} (${c.quantity})`).join(', ')}</p><p class="small muted">Nomor inventaris: ${esc(a.inventory_number||'Belum ada; menggunakan ID internal LabPass')}</p>${state.user.role==='student'&&a.status==='AVAILABLE'?`<form id="loan-form"><input type="hidden" name="asset_id" value="${esc(a.id)}"><label>Tujuan peminjaman<textarea name="purpose" required maxlength="600" placeholder="Contoh: pengujian rangkaian untuk tugas mata kuliah"></textarea></label><label>Dosen terkait<input name="lecturer" required maxlength="150" placeholder="Nama dosen (informasi, bukan approver tambahan)"></label><div class="form-row"><label>Tanggal mulai<input type="date" name="start_date" required value="${today}"></label><label>Rencana kembali<input type="date" name="due_date" required value="${today}"></label></div><div class="notice">Satu pengajuan untuk satu unit. Persetujuan akan memesan alat sampai pengambilan atau pembatalan.</div><button class="primary full">Kirim pengajuan</button></form>`:state.user.role==='staff'&&a.status==='INSPECTION'?`<p class="notice">Tandai tersedia hanya setelah pemeriksaan nyata. Tindakan ini tidak mencakup proses perbaikan atau pengadaan.</p><button class="primary" data-release="${a.id}">Tandai sudah diperiksa & tersedia</button>`:'<p class="notice">Alat ini belum dapat diajukan dari akun/status saat ini.</p>'}`);}
+function showAsset(id) {
+ const asset=state.assets.find(item=>item.id===id);
+ const today=new Date().toISOString().slice(0,10);
+ let action='<p class="notice">Alat ini belum dapat diajukan dari akun/status saat ini.</p>';
+ if(state.user.role==='student'&&asset.status==='AVAILABLE') {
+  action=`<form id="loan-form">
+   <input type="hidden" name="asset_id" value="${esc(asset.id)}">
+   <label>Tujuan peminjaman<textarea name="purpose" required maxlength="600" placeholder="Contoh: pengujian rangkaian untuk tugas mata kuliah"></textarea></label>
+   <label>Dosen terkait<input name="lecturer" required maxlength="150" placeholder="Nama dosen terkait"></label>
+   <div class="form-row">
+    <label>Tanggal mulai<input type="date" name="start_date" required value="${today}"></label>
+    <label>Rencana kembali<input type="date" name="due_date" required value="${today}"></label>
+   </div>
+   <div class="notice">Satu pengajuan untuk satu unit. Persetujuan akan memesan alat sampai pengambilan atau pembatalan.</div>
+   <p class="loan-form-error" data-loan-error role="alert" hidden></p>
+   <button class="primary full">Kirim pengajuan</button>
+  </form>`;
+ } else if(state.user.role==='staff'&&asset.status==='INSPECTION') {
+  action=`<p class="notice">Tandai tersedia hanya setelah pemeriksaan nyata. Tindakan ini tidak mencakup proses perbaikan atau pengadaan.</p>
+   <button class="primary" data-release="${esc(asset.id)}">Tandai sudah diperiksa & tersedia</button>`;
+ }
+ openModal(`<div class="eyebrow">${esc(asset.id)}</div><h2>${esc(asset.name)}</h2>${badge(asset.status)}
+  <p class="muted">${esc(asset.description)}</p>
+  <p><strong>Kelengkapan:</strong> ${asset.components.map(component=>`${esc(component.name)} (${component.quantity})`).join(', ')}</p>
+  <p class="small muted">Nomor inventaris: ${esc(asset.inventory_number||'Belum ada; menggunakan ID internal LabPass')}</p>
+  ${action}`);
+}
 function showChecklist(action){const a=state.detail.asset;openModal(`<div class="eyebrow">PEMERIKSAAN PETUGAS</div><h2>${action==='handover'?'Serah terima awal':'Pemeriksaan kembali'}</h2><p class="muted">${esc(a.name)} · ${esc(a.id)}</p><form id="check-form" data-type="${action}"><label>Kondisi<select name="condition"><option>Baik</option><option>Lecet</option><option>Rusak</option><option>Perlu pemeriksaan</option></select></label><fieldset><legend>Kelengkapan yang diserahkan / diterima</legend>${a.components.map(c=>`<label class="check-row"><span>${esc(c.name)}</span><input type="number" name="component:${c.id}" min="0" max="${c.quantity}" value="${c.quantity}" required aria-label="Jumlah ${esc(c.name)}"></label>`).join('')}</fieldset><label>Catatan<textarea name="notes" maxlength="1200" placeholder="Hasil pengamatan visual/fungsi singkat"></textarea></label><button class="primary full">Simpan hasil pemeriksaan</button></form>`);}
 async function doAction(action,body={},button){busy(button,true);try{await api(`/api/loans/${state.detail.loan.id}/actions/${action}`,{method:'POST',body});state.detail=await api(`/api/loans/${state.detail.loan.id}`);await refresh();modal.close();shell();toast('Tindakan tersimpan. Periksa status bukti pada riwayat.');}catch(e){toast(e.message,true);}finally{busy(button,false);}}
 async function showVerify(id,candidate=null){const v=await api(`/api/evidence/${id}/verify`,{method:'POST',body:candidate===null?{}:{candidate}});state.proofId=id;
@@ -67,12 +93,32 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
  else if(b.hasAttribute('data-retry')){busy(b,true);await api('/api/evidence/retry',{method:'POST',body:{}});await refresh();shell();toast('Percobaan pencatatan selesai.');}
  else if(b.dataset.release){await api(`/api/assets/${b.dataset.release}/release`,{method:'POST',body:{}});modal.close();await refresh();shell();toast('Alat tersedia kembali.');}
  }catch(error){toast(error.message,true);busy(b,false);}});
-document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target,b=f.querySelector('button[type="submit"],button');busy(b,true);try{const data=Object.fromEntries(new FormData(f));
+document.addEventListener('submit',async e=>{
+ e.preventDefault();
+ const f=e.target,b=f.querySelector('button[type="submit"],button');
+ const feedback=f.querySelector('[data-loan-error]');
+ if(feedback)feedback.hidden=true;
+ busy(b,true);
+ try{const data=Object.fromEntries(new FormData(f));
  if(f.id==='login-form'){const r=await api('/api/login',{method:'POST',body:data});state.user=r.user;await refresh();shell();}
- else if(f.id==='loan-form'){const r=await api('/api/loans',{method:'POST',body:data});modal.close();await refresh();state.view='loans';state.detail=await api(`/api/loans/${r.loan.id}`);shell();toast('Pengajuan berhasil dibuat.');}
+ else if(f.id==='loan-form'){
+  const r=await api('/api/loans',{method:'POST',body:{...data,expected_borrower_id:state.user.id}});
+  modal.close();
+  await refresh();
+  state.view='loans';
+  state.detail=await api(`/api/loans/${r.loan.id}`);
+  shell();
+  toast('Pengajuan berhasil dibuat.');
+ }
  else if(f.id==='check-form'){const components=state.detail.asset.components.map(c=>({id:c.id,received:Number(data[`component:${c.id}`])}));await doAction(f.dataset.type,{condition:data.condition,notes:data.notes,components},b);}
  else if(f.id==='reject-form')await doAction('reject',data,b);
- }catch(error){toast(error.message,true);}finally{busy(b,false);}});
+ }catch(error){
+  if(feedback&&modal.open){
+   feedback.textContent=error.message;
+   feedback.hidden=false;
+   feedback.scrollIntoView({block:'nearest'});
+  } else toast(error.message,true);
+ }finally{busy(b,false);}});
 document.addEventListener('change',async e=>{try{if(e.target.id==='photo-upload'){const file=e.target.files[0];if(!file)return;if(file.size>3*1024*1024)throw new Error('Ukuran foto maksimal 3 MB.');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});await api(`/api/loans/${state.detail.loan.id}/attachments`,{method:'POST',body:{filename:file.name,base64}});state.detail=await api(`/api/loans/${state.detail.loan.id}`);shell();toast('Foto tersimpan untuk rekaman bukti berikutnya.');}
  if(e.target.id==='candidate-upload'){const file=e.target.files[0];if(!file)return;if(file.size>1024*1024)throw new Error('JSON kandidat maksimal 1 MB.');await showVerify(state.proofId,JSON.parse(await file.text()));}
  }catch(error){toast(error.message,true);}});
