@@ -1,0 +1,14 @@
+{
+  "name": "labpass-local-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototipe lokal peminjaman lab dan verifikasi bukti on-chain",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "check": "node --check server.js && node --check lib/service.js && node --check public/app.js"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": { "ethers": "^6.15.0", "ganache": "^7.9.2", "solc": "^0.8.30" }
+}
