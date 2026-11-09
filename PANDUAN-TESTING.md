@@ -36,6 +36,25 @@ Simulasi pada langkah 6 mengedit salinan JSON bukti. NIM asli pada database teta
 | Akses akun lain | Masuk sebagai Bima. Daftar **Peminjaman saya** hanya menampilkan pengajuan Bima. Pengajuan Alya tetap terlihat dari akun petugas. |
 | Foto opsional | Tambah foto dummy PNG/JPEG maksimal 3 MB sebelum mencatat serah terima. Pada verifikasi bukti serah terima tersebut, baris foto menunjukkan **Cocok**. |
 
+## Uji smart contract di Remix VM
+
+Bagian ini menguji [kontrak LabPass yang sama](contracts/LabPass.sol) secara terpisah dari aplikasi. Remix VM menjalankan jaringan uji di browser dan memakai akun simulasi. Aplikasi LabPass tetap memakai Ganache lokal, sehingga kedua pengujian memiliki riwayat transaksi masing-masing.
+
+1. Buka [Remix IDE](https://app.remix.live/), buat file `LabPass.sol`, lalu salin isi [kontrak di repo](contracts/LabPass.sol).
+2. Di **Solidity Compiler**, pilih **0.8.34** dan klik **Compile**. Versi ini digunakan pada uji Remix kelompok.
+3. Buka **Deploy & Run**. Pilih **Remix VM (Osaka)** sebagai lingkungan, pilih **LabPass**, lalu klik **Deploy**. Konstruktor tidak meminta parameter. Akun yang melakukan deploy menjadi operator.
+4. Buka **Deployed Contracts** dan pilih instans LabPass. Pada fungsi `recordEvidence`, isi **recordId** dan **digest** dengan dua nilai dummy berikut, lalu klik **Transact**.
+
+   ```text
+   recordId  0x0000000000000000000000000000000000000000000000000000000000000001
+   digest    0x12c3c7f860c60baa2187c76078bc23b6ffb505f7ed775ec33b7b43cfaa239583
+   ```
+
+5. Masukkan **recordId** yang sama ke `proofs` lalu klik **Call**. Hasil yang diharapkan adalah **digest** yang sama dan **recordedAt** lebih besar dari nol.
+6. Jalankan `recordEvidence` lagi dengan **recordId** yang sama. Transaksi harus ditolak dengan **AlreadyRecorded**. Panggil `proofs` lagi untuk memeriksa bukti awal.
+
+Uji pada **9 November 2026** berhasil melakukan deploy, mencatat dan membaca hash, serta menolak pencatatan ulang. Untuk mengulang dari keadaan kosong, deploy instans kontrak baru. Simpan tangkapan layar hasil `proofs` dan pesan **AlreadyRecorded** sebagai bukti demo.
+
 ## Catat hasil dan ambil bahan PPT
 
 Gunakan **Lulus**, **Gagal**, atau **Belum dicoba** untuk setiap skenario. Untuk hasil gagal, simpan langkah, akun, ID transaksi, hasil yang muncul, dan tangkapan layar agar bisa diulang.

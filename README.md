@@ -110,6 +110,8 @@ Menghapus folder data berarti menghilangkan seluruh transaksi demo dan bukti lok
 
 ## Pengujian
 
+Untuk demo smart contract di browser, ikuti [Panduan uji Remix VM](PANDUAN-TESTING.md#uji-smart-contract-di-remix-vm). Kontrak yang dipakai adalah [LabPass.sol](contracts/LabPass.sol). Untuk menguji alur aplikasi lengkap dengan Ganache lokal, ikuti [uji utama](PANDUAN-TESTING.md#uji-utama).
+
 `npm test` menjalankan pengujian dengan database dan chain terpisah di direktori sementara. `npm run check` memeriksa sintaks JavaScript.
 
 Teruji: hak akses pemilik/petugas, pemesanan unit eksklusif, kelengkapan wajib, konfirmasi peminjam, lifecycle pengembalian, deteksi perubahan identitas/arsip/JSON kandidat, hash foto, kontrak menolak operator lain dan overwrite, kegagalan chain serta retry, dan persistensi kontrak/operator/bukti setelah restart. Browser juga diuji untuk alur pengajuan sampai selesai, verifikasi kandidat yang diubah, dan tampilan 390 px.
