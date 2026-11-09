@@ -4,13 +4,15 @@ MVP lokal untuk proyek kelompok mata kuliah Blockchain. Database, backend, front
 
 ## Menjalankan
 
-Memerlukan Node.js **22.18 atau lebih baru pada versi 22**, atau Node.js versi baru yang menyediakan `node:sqlite`. Versi yang diuji: 22.18.0. Tidak memerlukan MetaMask, akun cloud, database terpisah, saldo kripto, atau koneksi internet setelah dependensi terpasang.
+Memerlukan Node.js **22.18 atau lebih baru** dengan `node:sqlite` dan npm. Versi yang diuji adalah 22.18.0. Koneksi internet diperlukan saat pertama memasang dependensi.
 
-1. Buka terminal di folder `LabPass` ini.
-2. Jalankan `npm install` jika dependensi belum tersedia. Di komputer pengembangan ini sudah terpasang.
-3. Jalankan `npm start`, atau klik dua kali `Mulai-LabPass.cmd` di Windows.
-4. Buka **http://127.0.0.1:8787** di browser. Biarkan terminal tetap terbuka.
-5. Hentikan dengan `Ctrl+C` pada terminal. Data akan dipakai kembali saat aplikasi dijalankan lagi.
+1. Instal Node.js dari [situs resmi](https://nodejs.org/en/download) jika belum tersedia. Di Windows, gunakan **Windows Installer (.msi)** dan biarkan opsi **Add to PATH** aktif. Tutup terminal lama setelah instalasi, lalu cek `node -v` dan `npm -v` di terminal baru.
+2. Clone repo atau ekstrak ZIP kode ke folder biasa.
+3. Di Windows, klik dua kali `Mulai-LabPass.cmd`. Launcher akan menjalankan `npm ci` jika dependensi belum tersedia. Untuk menjalankan lewat terminal, buka folder LabPass, jalankan `npm ci` sekali, lalu `npm start`.
+4. Setelah muncul tulisan **LabPass siap**, buka alamat yang tercetak di terminal. Alamat defaultnya **http://127.0.0.1:8787**. Biarkan terminal tetap terbuka.
+5. Hentikan dengan `Ctrl+C`. Data akan dipakai kembali saat aplikasi dijalankan lagi.
+
+Jika muncul pesan `node is not recognized`, buka Command Prompt baru setelah instalasi. Jika `node -v` masih gagal, jalankan ulang installer Node.js dan periksa opsi **Add to PATH**.
 
 Jika port sedang digunakan, atur `$env:PORT=8790` pada PowerShell sebelum `npm start`, lalu buka port tersebut. Server hanya menerima koneksi dari komputer lokal.
 
