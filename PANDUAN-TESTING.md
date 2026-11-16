@@ -11,18 +11,18 @@ Jalankan alur utama bersama kelompok terlebih dahulu. Sisihkan sekitar 15–20 m
 
 ## Uji utama
 
-Saat berpindah peran, buka kembali daftar **Peminjaman saya** atau **Kelola peminjaman**, klik **Perbarui**, lalu buka transaksi yang sama. Ini memuat status setelah tindakan dari akun lain.
+Saat berpindah peran, klik **Perbarui status** pada halaman detail transaksi. Di daftar peminjaman, tombol **Perbarui** tetap tersedia.
 
 | No. | Peran dan langkah | Hasil yang diharapkan |
 | --- | --- | --- |
 | 1 | **Alya.** Pilih alat, isi tujuan `Uji dummy kelompok – praktikum RL`, dosen `Dosen Demo`, tanggal mulai hari ini dan tanggal kembali besok. Kirim pengajuan. | Transaksi berstatus **Diajukan** dan muncul di daftar petugas. |
 | 2 | **Pak Zaenal.** Buka pengajuan dan klik **Setujui pengajuan**. | Transaksi **Disetujui**, unit **Dipesan**. |
-| 3 | **Pak Zaenal.** Klik **Catat serah terima**. Pilih **Baik**, isi kelengkapan sesuai jumlah standar, lalu simpan. | Status **Konfirmasi pengambilan**. Riwayat serah terima menunjukkan **Tercatat on-chain**. |
+| 3 | **Pak Zaenal.** Klik **Catat serah terima**. Pilih **Baik**, isi kelengkapan sesuai jumlah standar. Bila memakai foto, unggah pada bagian **Foto serah terima awal** di formulir ini, tunggu unggahan selesai, lalu simpan. | Status **Konfirmasi pengambilan**. Riwayat serah terima menunjukkan **Tercatat on-chain**. Foto tahap ini terkunci sampai peminjam mengonfirmasi. |
 | 4 | **Alya.** Buka ulang transaksi, klik **Konfirmasi penerimaan alat**, lalu setujui rekaman. | Transaksi dan unit **Dipinjam**. Konfirmasi peminjam muncul sebagai kejadian baru. |
 | 5 | **Alya.** Pada riwayat konfirmasi, klik **Verifikasi**. Periksa hasil dan catat hash transaksi. | Rekaman database, arsip asli, komitmen blockchain, dan identitas saat ini menunjukkan **Cocok**. Hash transaksi dan nomor blok tampil. |
 | 6 | **Alya.** Di jendela yang sama, klik **Simulasikan NIM berubah**. | Baris **JSON kandidat yang diperiksa** menunjukkan **Tidak cocok**. Hasil untuk arsip asli dan komitmen blockchain tetap **Cocok**. |
 | 7 | **Alya.** Tutup verifikasi dan klik **Ajukan pengembalian**. | Transaksi **Menunggu pemeriksaan**. Unit masih **Dipinjam** sampai diperiksa. |
-| 8 | **Pak Zaenal.** Klik **Periksa pengembalian**. Isi kondisi **Baik** dan semua kelengkapan sesuai standar, lalu simpan. | Transaksi **Konfirmasi pengembalian**. |
+| 8 | **Pak Zaenal.** Klik **Perbarui status**, lalu **Periksa pengembalian**. Isi kondisi **Baik** dan semua kelengkapan sesuai standar. Foto opsional ditambahkan pada **Foto pengembalian** sebelum menyimpan. | Transaksi **Konfirmasi pengembalian**. Foto pengembalian masuk bukti tahap ini. |
 | 9 | **Alya.** Buka ulang transaksi, klik **Konfirmasi hasil pengembalian**, lalu setujui rekaman. Cek inventaris. | Transaksi **Selesai**, unit kembali **Tersedia**. Pemeriksaan dan konfirmasi pengembalian muncul di riwayat. |
 
 Simulasi pada langkah 6 mengedit salinan JSON bukti. NIM asli pada database tetap tersimpan di luar blockchain. Smart contract menyimpan hash yang dipakai untuk memeriksa kecocokan salinan dengan bukti yang dicatat.
@@ -69,6 +69,6 @@ Ambil tiga tangkapan layar dari transaksi yang sama.
 2. Dialog **Verifikasi** sebelum simulasi, dengan status cocok dan hash transaksi lokal.
 3. Dialog setelah simulasi perubahan NIM, dengan hasil kandidat **Tidak cocok**.
 
-Pakai gambar pertama untuk bagian **Implementation** dan dua gambar berikutnya untuk menunjukkan apa yang diuji di bagian **Blockchain Fit** atau demo. Untuk presentasi lima menit, siapkan satu transaksi yang sudah selesai. Tampilkan riwayat, buka verifikasi, lalu klik simulasi perubahan NIM. Simpan tiga tangkapan layar sebagai cadangan demo.
+Pakai gambar pertama untuk bagian **Implementation** dan dua gambar berikutnya untuk menunjukkan apa yang diuji di bagian **Blockchain Fit** atau demo. Brief UAS memberi maksimum tujuh menit untuk keseluruhan presentasi dan demo. Siapkan satu transaksi yang sudah selesai, tampilkan riwayat, salin tx hash, lalu buka verifikasi dan simulasi perubahan NIM. Siapkan juga satu penolakan kontrak di Remix dan simpan tangkapan layar sebagai cadangan.
 
 Jika ingin menjalankan cek teknis yang sudah ada, gunakan `npm test` dari folder LabPass. Catat hasil uji otomatis dan hasil uji browser kelompok secara terpisah.

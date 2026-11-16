@@ -18,6 +18,16 @@ Jika port sedang digunakan, atur `$env:PORT=8790` pada PowerShell sebelum `npm s
 
 ## Akun demo
 
+### Mulai cepat untuk penguji
+
+1. Jalankan LabPass dengan langkah instalasi di atas, lalu buka alamat lokal yang tercetak.
+2. Pilih **Alya** pada browser biasa dan **Pak Zaenal** pada jendela Incognito. Kedua jendela memisahkan sesi akun.
+3. Alya mengajukan alat yang tersedia. Pak Zaenal membuka pengajuan, menyetujui, lalu mengisi checklist serah terima. Foto serah terima awal dapat ditambahkan langsung di formulir pemeriksaan sebelum menyimpan.
+4. Di halaman detail Alya, klik **Perbarui status**, lalu konfirmasi penerimaan. Alya mengajukan pengembalian. Pak Zaenal memperbarui status, mengisi pemeriksaan kembali, dan dapat menambahkan foto pengembalian. Alya memperbarui status dan mengonfirmasi hasilnya.
+5. Pada riwayat, gunakan **Salin tx hash** atau **Verifikasi** untuk memeriksa bukti. Untuk kasus penolakan kontrak, ikuti [uji pencatatan ID ganda di Remix VM](PANDUAN-TESTING.md#uji-smart-contract-di-remix-vm).
+
+Foto opsional. Sistem mengelompokkan foto berdasarkan tahap peminjaman. Setelah petugas menyimpan pemeriksaan, foto tahap itu dikunci selama menunggu konfirmasi. Foto pada database versi lama ditampilkan sebagai **Foto lama, tahap belum tercatat**. Bukti dan arsip lama tetap dapat diverifikasi.
+
 Pilih langsung pada halaman masuk. Semua kata sandi: `demo123`.
 
 | ID | Peran | Nama simulasi |
