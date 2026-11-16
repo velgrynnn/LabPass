@@ -12,9 +12,34 @@ function toast(msg,error=false){const t=document.getElementById('toast');t.textC
 function busy(button,on){if(button){button.disabled=on;button.classList.toggle('busy',on);}}
 async function refresh(){const [a,l,h]=await Promise.all([api('/api/assets'),api('/api/loans'),api('/api/health')]);state.assets=a.assets;state.loans=l.loans;state.health=h;}
 const logo=`<div class="logo-mark">L<span>◆</span></div><span class="brand">LabPass<small>LAB RADAR / PROTOTIPE</small></span>`;
-async function renderLogin(){
-  state.detail=null;const data=await api('/api/demo-accounts');
-  app.innerHTML=`<main class="login"><section class="login-story"><div class="logo">${logo}</div><div class="eyebrow">RUANG BELAJAR, LEBIH TERTATA</div><h1>Alat siap.<br>Riwayat <em>tercatat.</em></h1><p>Peminjaman lab yang mudah dipantau, dengan bukti serah terima yang bisa diperiksa.</p><div class="login-trail"><span>01 Pilih alat</span><span>02 Konfirmasi</span><span>03 Kembalikan</span></div><div class="dummy-stamp">DATA DUMMY · BUKAN SISTEM RESMI ITB</div></section><section class="login-form"><div class="eyebrow">SELAMAT DATANG</div><h2>Masuk ke LabPass</h2><p class="muted">Pilih akun demo untuk mencoba alur mahasiswa atau petugas.</p><div class="demo-accounts">${data.accounts.map(u=>`<button class="demo-account" data-login="${esc(u.id)}"><span class="avatar">${esc(u.name[0])}</span><span><strong>${esc(u.name)}</strong><small>${u.role==='staff'?'Petugas lab':'Mahasiswa'} · ${esc(u.id)}</small></span><span class="chevron">↗</span></button>`).join('')}</div><details><summary>Masuk dengan ID & kata sandi</summary><form id="login-form"><label>ID akun<input name="id" required autocomplete="username"></label><label>Kata sandi<input name="password" type="password" required autocomplete="current-password"></label><button class="primary">Masuk</button></form><p class="small muted">Semua akun demo memakai kata sandi <code>demo123</code>.</p></details><div class="login-note">Semua akun simulasi. Backend mengelola kunci blockchain lokal. Jangan masukkan data pribadi nyata.</div></section></main>`;
+async function renderLogin() {
+ state.detail=null;
+ const data=await api('/api/demo-accounts');
+ const shortcuts=data.demoShortcuts?`<details><summary>Akun cepat untuk demo lokal</summary>
+  <div class="demo-accounts">${data.accounts.map(user=>`<button class="demo-account" data-login="${esc(user.id)}">
+   <span class="avatar">${esc(user.name[0])}</span><span><strong>${esc(user.name)}</strong>
+   <small>${user.role==='staff'?'Petugas lab':'Mahasiswa'} · ${esc(user.id)}</small></span></button>`).join('')}</div>
+ </details>`:'';
+ app.innerHTML=`<main class="login">
+  <section class="login-story"><div class="logo">${logo}</div>
+   <div class="eyebrow">RUANG BELAJAR, LEBIH TERTATA</div>
+   <h1>Alat siap.<br>Riwayat <em>tercatat.</em></h1>
+   <p>Peminjaman lab yang mudah dipantau, dengan bukti serah terima yang bisa diperiksa.</p>
+   <div class="login-trail"><span>01 Pilih alat</span><span>02 Konfirmasi</span><span>03 Kembalikan</span></div>
+   <div class="dummy-stamp">DATA DUMMY · BUKAN SISTEM RESMI ITB</div>
+  </section>
+  <section class="login-form"><div class="eyebrow">SELAMAT DATANG</div><h2>Masuk ke LabPass</h2>
+   <p class="muted">Gunakan ID akun dan kata sandi sesuai panduan kelompok.</p>
+   <form id="login-form">
+    <label>ID akun<input name="account_id" required autocomplete="username" placeholder="ID akun pada README"></label>
+    <label>Kata sandi<input name="password" type="password" required autocomplete="current-password"></label>
+    <p class="loan-form-error" data-loan-error role="alert" hidden></p>
+    <button type="submit" class="primary full">Masuk</button>
+   </form>
+   ${shortcuts}
+   <div class="login-note">Untuk mencoba mahasiswa dan petugas bersamaan, gunakan jendela browser biasa dan Incognito. Akun simulasi tersedia pada README project.</div>
+  </section>
+ </main>`;
 }
 function shell(){
  const staff=state.user.role==='staff',chain=state.health?.chain;
@@ -88,7 +113,7 @@ function renderDetail(el) {
  if(mine&&loan.status==='BORROWED')actions='<button class="primary" data-action="request-return">Ajukan pengembalian</button>';
  if(staff&&loan.status==='RETURN_REQUESTED')actions='<button class="primary" data-check="inspect-return">Periksa pengembalian</button>';
  if(mine&&loan.status==='RETURN_PENDING')actions='<button class="primary" data-confirm="confirm-return">Konfirmasi hasil pengembalian</button>';
- if(mine&&['REQUESTED','APPROVED'].includes(loan.status))actions+='<button class="secondary" data-action="cancel">Batalkan pengajuan</button>';
+ if(mine&&['REQUESTED','APPROVED','HANDOVER_PENDING'].includes(loan.status))actions+='<button class="secondary" data-confirm-cancel>Batalkan peminjaman</button>';
  el.innerHTML=`<div class="detail-toolbar">
   <button class="back" data-nav="loans">← Kembali ke peminjaman</button>
   <button class="secondary" data-refresh>↻ Perbarui status</button>
@@ -193,6 +218,10 @@ async function showVerify(id,candidate=null){const v=await api(`/api/evidence/${
 app.addEventListener('input',e=>{if(e.target.id==='asset-search'){state.query=e.target.value;const start=e.target.selectionStart;renderAssets(document.getElementById('content'));const input=document.getElementById('asset-search');input.focus();input.setSelectionRange(start,start);}});
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||b.disabled)return;try{
  if(b.hasAttribute('data-close'))return modal.close();
+ if(b.hasAttribute('data-confirm-cancel')){
+  openModal('<h2>Batalkan peminjaman?</h2><p>Pilih ini bila alat belum kamu terima. Unit yang sudah dipesan akan kembali tersedia. Riwayat pemeriksaan awal tetap tersimpan.</p><button class="danger" data-action="cancel">Ya, batalkan peminjaman</button>');
+  return;
+ }
  if(b.dataset.copyTx){
   try {
    await navigator.clipboard.writeText(b.dataset.copyTx);
@@ -227,12 +256,13 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
 document.addEventListener('submit',async e=>{
  e.preventDefault();
  const f=e.target,b=f.querySelector('button[type="submit"],button');
+ const formId=f.getAttribute('id');
  const feedback=f.querySelector('[data-loan-error]');
  if(feedback)feedback.hidden=true;
  busy(b,true);
  try{const data=Object.fromEntries(new FormData(f));
- if(f.id==='login-form'){const r=await api('/api/login',{method:'POST',body:data});state.user=r.user;await refresh();shell();}
- else if(f.id==='loan-form'){
+ if(formId==='login-form'){const r=await api('/api/login',{method:'POST',body:{id:data.account_id,password:data.password}});state.user=r.user;await refresh();shell();}
+ else if(formId==='loan-form'){
   const r=await api('/api/loans',{method:'POST',body:{...data,expected_borrower_id:state.user.id}});
   modal.close();
   await refresh();
@@ -241,10 +271,10 @@ document.addEventListener('submit',async e=>{
   shell();
   toast('Pengajuan berhasil dibuat.');
  }
- else if(f.id==='check-form'){const components=state.detail.asset.components.map(c=>({id:c.id,received:Number(data[`component:${c.id}`])}));await doAction(f.dataset.type,{condition:data.condition,notes:data.notes,components},b);}
- else if(f.id==='reject-form')await doAction('reject',data,b);
+ else if(formId==='check-form'){const components=state.detail.asset.components.map(c=>({id:c.id,received:Number(data[`component:${c.id}`])}));await doAction(f.dataset.type,{condition:data.condition,notes:data.notes,components},b);}
+ else if(formId==='reject-form')await doAction('reject',data,b);
  }catch(error){
-  if(feedback&&modal.open){
+  if(feedback&&(modal.open||formId==='login-form')){
    feedback.textContent=error.message;
    feedback.hidden=false;
    feedback.scrollIntoView({block:'nearest'});

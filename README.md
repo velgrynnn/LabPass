@@ -16,19 +16,23 @@ Jika muncul pesan `node is not recognized`, buka Command Prompt baru setelah ins
 
 Jika port sedang digunakan, atur `$env:PORT=8790` pada PowerShell sebelum `npm start`, lalu buka port tersebut. Server hanya menerima koneksi dari komputer lokal.
 
+### Mengambil perbaikan terbaru
+
+Hentikan server dengan `Ctrl+C`, lalu di GitHub Desktop pilih repo LabPass, klik **Fetch origin** dan **Pull origin** bila tersedia. Jalankan `Mulai-LabPass.cmd` kembali dan muat ulang browser. Data demo yang sudah ada tetap dipakai; reset merupakan langkah terpisah. Untuk pengguna ZIP, ekstrak kode baru ke folder terpisah dan ikuti langkah instalasi. Simpan folder demo lama jika buktinya masih dibutuhkan.
+
 ## Akun demo
 
 ### Mulai cepat untuk penguji
 
 1. Jalankan LabPass dengan langkah instalasi di atas, lalu buka alamat lokal yang tercetak.
-2. Pilih **Alya** pada browser biasa dan **Pak Zaenal** pada jendela Incognito. Kedua jendela memisahkan sesi akun.
+2. Login manual sebagai **Alya** dengan ID `mhs-1` dan kata sandi `demo123` pada browser biasa. Gunakan ID `staff-zaenal` dengan kata sandi yang sama pada jendela Incognito. Kedua jendela memisahkan sesi akun.
 3. Alya mengajukan alat yang tersedia. Pak Zaenal membuka pengajuan, menyetujui, lalu mengisi checklist serah terima. Foto serah terima awal dapat ditambahkan langsung di formulir pemeriksaan sebelum menyimpan.
 4. Di halaman detail Alya, klik **Perbarui status**, lalu konfirmasi penerimaan. Alya mengajukan pengembalian. Pak Zaenal memperbarui status, mengisi pemeriksaan kembali, dan dapat menambahkan foto pengembalian. Alya memperbarui status dan mengonfirmasi hasilnya.
 5. Pada riwayat, gunakan **Salin tx hash** atau **Verifikasi** untuk memeriksa bukti. Untuk kasus penolakan kontrak, ikuti [uji pencatatan ID ganda di Remix VM](PANDUAN-TESTING.md#uji-smart-contract-di-remix-vm).
 
 Foto opsional. Sistem mengelompokkan foto berdasarkan tahap peminjaman. Setelah petugas menyimpan pemeriksaan, foto tahap itu dikunci selama menunggu konfirmasi. Foto pada database versi lama ditampilkan sebagai **Foto lama, tahap belum tercatat**. Bukti dan arsip lama tetap dapat diverifikasi.
 
-Pilih langsung pada halaman masuk. Semua kata sandi: `demo123`.
+Masukkan ID akun pada form login. Semua kata sandi dummy adalah `demo123`.
 
 | ID | Peran | Nama simulasi |
 |---|---|---|
@@ -42,6 +46,24 @@ Pilih langsung pada halaman masuk. Semua kata sandi: `demo123`.
 
 Untuk mencoba dua peran bersamaan, gunakan browser biasa untuk mahasiswa dan jendela incognito/browser lain untuk petugas. Dua tab biasa berbagi sesi login. Alternatifnya, keluar dan masuk kembali menggunakan akun peran berikutnya.
 
+Tampilan default meminta ID dan kata sandi. Pintasan akun demo hanya tersedia jika server dijalankan dengan `LABPASS_DEMO_SHORTCUTS=1`. Akun dan kata sandi ini merupakan data simulasi yang terdokumentasi. Untuk versi yang diakses melalui internet, pengelolaan akun dan kata sandi perlu disiapkan kembali.
+
+Setiap komputer yang menjalankan server lokal memiliki database dan chain sendiri. Untuk melihat pengajuan yang sama, mahasiswa dan petugas harus memakai server yang sama. Saat demo lokal, gunakan dua jendela di komputer yang sama. Tombol **Perbarui** memuat transaksi yang tersimpan pada server itu.
+
+## Membatalkan sebelum alat diterima
+
+Mahasiswa bisa memilih **Batalkan peminjaman** saat pengajuan masih diajukan, disetujui, atau menunggu konfirmasi penerimaan. Jika petugas sudah mencatat kondisi awal, mahasiswa tetap dapat membatalkan selama belum menekan konfirmasi penerimaan. Unit kembali tersedia, riwayat kondisi awal tetap tersimpan, dan pembatalan setelah pemeriksaan mendapat bukti blockchain baru. Setelah penerimaan dikonfirmasi, gunakan alur pengembalian.
+
+## Reset demo dengan cadangan
+
+1. Hentikan server LabPass dengan `Ctrl+C` pada terminal yang menjalankannya.
+2. Klik dua kali `Reset-Demo-LabPass.cmd`, atau jalankan `npm run reset-demo`.
+3. Ketik `RESET` pada pertanyaan konfirmasi.
+4. Seluruh folder `data` dipindahkan ke `backups/data-<waktu>`, termasuk database, foto, arsip, chain dan kunci operator.
+5. Jalankan `Mulai-LabPass.cmd`. Data dummy dan kontrak lokal baru akan dibuat. Muat ulang browser, lalu login lagi.
+
+Reset menolak berjalan jika server masih aktif. Ia berlaku untuk folder `data` bawaan project. Folder `backups` diabaikan Git karena berisi data dan kunci dari demo lama. Untuk memulihkan suatu cadangan, hentikan server dan pindahkan keseluruhan folder cadangan kembali sebagai `data` setelah menyimpan folder data yang sedang dipakai.
+
 ## Alur demo
 
 1. **Mahasiswa:** pilih unit yang tersedia, isi tujuan, nama dosen terkait, tanggal mulai dan rencana kembali. Klik kirim pengajuan.
@@ -53,7 +75,7 @@ Untuk mencoba dua peran bersamaan, gunakan browser biasa untuk mahasiswa dan jen
 7. **Mahasiswa:** buka ulang detail dan konfirmasi hasil pemeriksaan. Transaksi selesai. Alat lengkap/baik tersedia kembali; alat rusak atau kurang lengkap masuk pemeriksaan.
 8. **Keduanya:** pada riwayat, pilih Verifikasi. Periksa kecocokan database, arsip asli, komitmen chain, identitas saat ini, dan foto yang masuk bukti. Coba Simulasikan NIM berubah: hanya salinan JSON kandidat yang berubah, sehingga hasil kandidat tidak cocok.
 
-Petugas dapat menolak pengajuan dengan alasan. Mahasiswa dapat membatalkan pengajuan sebelum serah terima dimulai. Alat yang selesai diperiksa dapat ditandai tersedia oleh petugas; proses perbaikan dan pengadaan tidak dimodelkan.
+Petugas dapat menolak pengajuan dengan alasan. Mahasiswa dapat membatalkan sebelum mengonfirmasi penerimaan alat, termasuk setelah pemeriksaan awal petugas. Alat yang selesai diperiksa dapat ditandai tersedia oleh petugas. Proses perbaikan dan pengadaan belum dimodelkan.
 
 ## Scope dan keputusan sementara
 
@@ -88,7 +110,7 @@ REQUESTED → APPROVED → HANDOVER_PENDING → BORROWED
           → RETURN_REQUESTED → RETURN_PENDING → CLOSED
 
 REQUESTED → REJECTED
-REQUESTED / APPROVED → CANCELLED
+REQUESTED / APPROVED / HANDOVER_PENDING → CANCELLED
 ```
 
 Baris kedua pada jalur utama melanjutkan `BORROWED`. Status alat terpisah: AVAILABLE, RESERVED, BORROWED, INSPECTION.
