@@ -27,3 +27,13 @@
  .detail-toolbar { align-items:flex-start; }
  .detail-toolbar .secondary { padding:10px; font-size:11px; }
 }
+
+/* Kontrak v2: tabel wallet, paspor alat, dan tombol uji penolakan */
+.wallet-table { width:100%; border-collapse:collapse; font-size:13px; }
+.wallet-table th { text-align:left; font-size:11px; letter-spacing:.6px; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); }
+.wallet-table td { padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+.wallet-table td small { display:block; color:var(--muted); font-size:11px; }
+.wallet-table .text-button { padding:0; }
+.table-scroll { overflow-x:auto; margin-top:12px; }
+.test-buttons { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0 6px; }
+.test-buttons .secondary { text-align:left; }

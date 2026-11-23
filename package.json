@@ -8,7 +8,7 @@
     "start": "node server.js",
     "reset-demo": "node scripts/reset-demo.js",
     "test": "node --test test/*.test.js",
-    "check": "node --check server.js && node --check lib/service.js && node --check public/app.js"
+    "check": "node --check server.js && node --check lib/service.js && node --check lib/chain.js && node --check public/app.js"
   },
   "engines": { "node": ">=22.13" },
   "dependencies": { "ethers": "^6.15.0", "ganache": "^7.9.2", "solc": "^0.8.30" }

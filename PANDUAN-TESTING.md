@@ -4,7 +4,7 @@ Jalankan alur utama bersama kelompok terlebih dahulu. Sisihkan sekitar 15–20 m
 
 ## Mulai dari sini untuk laporan progres
 
-Kerjakan satu alur normal di bagian **Uji utama**, lalu satu penolakan kontrak di bagian **Uji smart contract di Remix VM**. Ambil tiga screenshot aplikasi seperti daftar di bagian akhir, ditambah satu screenshot pesan **AlreadyRecorded** di Remix. Dua hasil verifikasi dapat digabung dalam satu gambar perbandingan agar slide ringkas. Masukkan ID pinjaman dan tx hash pada keterangan gambar. Simpan screenshot langkah lain sebagai lampiran bila diperlukan.
+Kerjakan satu alur normal di bagian **Uji utama**, lalu satu penolakan kontrak di bagian **Uji penolakan kontrak dari aplikasi**. Ambil screenshot aplikasi seperti daftar di bagian akhir, ditambah dialog **Ditolak: NotBorrower**. Uji Remix menjadi cadangan. Dua hasil verifikasi dapat digabung dalam satu gambar perbandingan agar slide ringkas. Masukkan ID pinjaman dan tx hash pada keterangan gambar. Simpan screenshot langkah lain sebagai lampiran bila diperlukan.
 
 Login manual memakai ID yang terdaftar, misalnya **Dimas** dengan `mhs-4` dan **Petugas PKL** dengan `staff-pkl`. Kata sandi keduanya `demo123`. Nama seperti `Dimas` atau NIM pribadi tidak digunakan sebagai ID login pada data dummy ini. Contoh alur di bawah menggunakan Alya dan Pak Zaenal dengan hak akses yang sama.
 
@@ -47,33 +47,58 @@ Simulasi pada langkah 6 mengedit salinan JSON bukti. NIM asli pada database teta
 
 Jika data sudah terlalu ramai untuk mengambil screenshot baru, ikuti bagian [Reset demo dengan cadangan](README.md#reset-demo-dengan-cadangan). Simpan bukti yang ingin dipakai untuk laporan sebelum memulai demo baru.
 
+## Uji penolakan kontrak dari aplikasi
+
+Cara paling cepat untuk demo kasus negatif. Masuk sebagai petugas.
+
+1. Buka transaksi yang berstatus **Konfirmasi pengambilan** (setelah petugas mencatat serah terima, sebelum mahasiswa mengonfirmasi).
+2. Pada kartu **Status di smart contract**, klik **Uji: petugas konfirmasi atas nama peminjam**.
+3. Hasil yang diharapkan: dialog **Ditolak: NotBorrower**, hasil transaksi **Gagal sesuai harapan (status 0)**, dan status kontrak tetap **Konfirmasi pengambilan → Konfirmasi pengambilan**. Salin tx hash untuk slide.
+4. Di **Bukti & jaringan**, coba juga dua tombol lain: wallet tanpa peran → `Unauthorized`, wallet mahasiswa menyetujui → `NotStaff`.
+5. Buka **Inventaris alat**, pilih alat yang tadi dipakai, lalu **Riwayat on-chain alat**. Tampil urutan status dan bukti yang dibaca dari event kontrak.
+
+Transaksi uji dikirim langsung ke kontrak tanpa melewati pengecekan backend. Database tidak berubah.
+
 ## Uji smart contract di Remix VM
 
-Bagian ini menguji [kontrak LabPass yang sama](contracts/LabPass.sol) secara terpisah dari aplikasi. Remix VM menjalankan jaringan uji di browser dan memakai akun simulasi. Aplikasi LabPass tetap memakai Ganache lokal, sehingga kedua pengujian memiliki riwayat transaksi masing-masing.
+Bagian ini menguji [kontrak LabPass v2](contracts/LabPass.sol) secara terpisah dari aplikasi. Remix VM menjalankan jaringan uji di browser dan memakai akun simulasi. Aplikasi LabPass tetap memakai Ganache lokal, sehingga tx hash dari web tidak bisa dibaca di Remix. [Dokumentasi resmi Remix](https://remix-ide.readthedocs.io/en/latest/run.html) menjelaskan bahwa Remix VM merupakan blockchain uji di browser.
 
-Untuk mengecek transaksi dari web LabPass, gunakan **Verifikasi** dan **Salin tx hash** pada riwayat web. Alamat kontrak dan tx hash dari Ganache lokal tidak dapat langsung dibaca lewat Remix VM karena itu jaringan yang berbeda. Uji Remix berikut menunjukkan fungsi kontrak dengan data dummy terpisah. [Dokumentasi resmi Remix](https://remix-ide.readthedocs.io/en/latest/run.html) menjelaskan bahwa Remix VM merupakan blockchain uji di browser.
+Siapkan tiga akun dari daftar **Account** di Remix: **Akun A** (deploy/admin), **Akun B** (mahasiswa), **Akun C** (petugas). Salin alamatnya ke catatan.
 
 1. Buka [Remix IDE](https://app.remix.live/), buat file `LabPass.sol`, lalu salin isi [kontrak di repo](contracts/LabPass.sol).
-2. Di **Solidity Compiler**, pilih **0.8.34** dan klik **Compile**. Versi ini digunakan pada uji Remix kelompok.
-3. Buka **Deploy & Run**. Pilih **Remix VM (Osaka)** sebagai lingkungan, pilih **LabPass**, lalu klik **Deploy**. Konstruktor tidak meminta parameter. Akun yang melakukan deploy menjadi operator.
-4. Buka **Deployed Contracts** dan pilih instans LabPass. Pada fungsi `recordEvidence`, isi **recordId** dan **digest** dengan dua nilai dummy berikut, lalu klik **Transact**.
+2. Di **Solidity Compiler**, pilih **0.8.24 atau lebih baru** lalu **Compile**.
+3. Di **Deploy & Run**, pilih **Remix VM**, akun **A**, kontrak **LabPass**, lalu **Deploy**.
+4. Masih dengan akun A, jalankan `setRole(alamat B, 1)` dan `setRole(alamat C, 2)`. Angka 1 = Student, 2 = Staff.
+5. Pindah ke akun **B**. Jalankan `requestLoan` dengan nilai berikut:
 
    ```text
-   recordId  0x0000000000000000000000000000000000000000000000000000000000000001
-   digest    0x12c3c7f860c60baa2187c76078bc23b6ffb505f7ed775ec33b7b43cfaa239583
+   loanId   0x4c4f414e2d52454d495800000000000000000000000000000000000000000000
+   assetId  0x4c502d4f53432d30303100000000000000000000000000000000000000000000
    ```
 
-5. Masukkan **recordId** yang sama ke `proofs` lalu klik **Call**. Hasil yang diharapkan adalah **digest** yang sama dan **recordedAt** lebih besar dari nol.
-6. Jalankan `recordEvidence` lagi dengan **recordId** yang sama. Transaksi harus ditolak dengan **AlreadyRecorded**. Panggil `proofs` lagi untuk memeriksa bukti awal.
+   Nilai di atas adalah teks `LOAN-REMIX` dan `LP-OSC-001` dalam bentuk bytes32.
+6. **Uji penolakan 1:** masih dengan akun B, jalankan `approve(loanId)`. Harus gagal dengan **NotStaff**.
+7. Pindah ke akun **C**, jalankan `approve(loanId)`. Berhasil. Panggil `loans(loanId)`: kolom `status` bernilai **2** (Approved).
+8. Akun C menjalankan `handover` dengan `loanId`, `recordId` dan `digest` berikut:
+
+   ```text
+   recordId 0x0000000000000000000000000000000000000000000000000000000000000001
+   digest   0x12c3c7f860c60baa2187c76078bc23b6ffb505f7ed775ec33b7b43cfaa239583
+   ```
+
+9. **Uji penolakan 2:** masih akun C, jalankan `confirmPickup` dengan `loanId`, recordId `0x…02`, dan digest yang sama. Harus gagal dengan **NotBorrower**: petugas tidak bisa mengonfirmasi atas nama peminjam.
+10. Pindah ke akun **B**, jalankan `confirmPickup` yang sama. Berhasil; `loans(loanId)` menunjukkan status **4** (Borrowed).
+11. **Uji penolakan 3:** jalankan lagi `confirmPickup` dari akun B. Harus gagal dengan **InvalidStatus** karena status sudah Borrowed.
 
 Panduan membaca hasil Remix:
 
-- `recordEvidence` memiliki dua kolom **bytes32**. Salin nilai lengkap dari blok di atas, termasuk `0x`. Masing-masing harus berisi 64 digit heksadesimal setelah `0x`.
-- `proofs` menerima satu **recordId**. Tekan **Call** untuk membaca. **digest** harus sama dengan input dan **recordedAt** harus lebih dari nol.
-- Setelah ID yang sama dikirim lagi, buka transaksi merah di terminal Remix dan cari **AlreadyRecorded**. Ini hasil penolakan yang diharapkan.
-- `recordId` pada contoh adalah kode bukti dummy. Akun Remix adalah alamat operator blockchain. Keduanya berbeda dari ID login LabPass seperti `mhs-4` atau `staff-pkl`.
+- Semua kolom **bytes32** harus berisi `0x` dan 64 digit heksadesimal. Salin nilai lengkap dari blok di atas.
+- Nomor status: 0 None, 1 Requested, 2 Approved, 3 HandoverPending, 4 Borrowed, 5 ReturnRequested, 6 ReturnPending, 7 Closed, 8 Rejected, 9 Cancelled.
+- Transaksi yang ditolak tampil merah di terminal Remix. Buka detailnya dan cari nama error (**NotStaff**, **NotBorrower**, **InvalidStatus**).
+- Tab **Logs** pada transaksi berhasil menampilkan event `LoanStatusChanged` dan `EvidenceRecorded`.
+- Akun Remix berbeda dari ID login LabPass seperti `mhs-4` atau `staff-pkl`.
 
-Uji pada **9 November 2026** berhasil melakukan deploy, mencatat dan membaca hash, serta menolak pencatatan ulang. Untuk mengulang dari keadaan kosong, deploy instans kontrak baru. Simpan tangkapan layar hasil `proofs` dan pesan **AlreadyRecorded** sebagai bukti demo.
+Untuk mengulang dari keadaan kosong, deploy instans kontrak baru. Simpan tangkapan layar setiap penolakan sebagai cadangan demo.
 
 ## Catat hasil dan ambil bahan PPT
 
@@ -89,6 +114,6 @@ Ambil tiga tangkapan layar dari transaksi yang sama.
 2. Dialog **Verifikasi** sebelum simulasi, dengan status cocok dan hash transaksi lokal.
 3. Dialog setelah simulasi perubahan NIM, dengan hasil kandidat **Tidak cocok**.
 
-Pakai gambar pertama untuk bagian **Implementation** dan dua gambar berikutnya untuk menunjukkan apa yang diuji di bagian **Blockchain Fit** atau demo. Brief UAS memberi maksimum tujuh menit untuk keseluruhan presentasi dan demo. Siapkan satu transaksi yang sudah selesai, tampilkan riwayat, salin tx hash, lalu buka verifikasi dan simulasi perubahan NIM. Siapkan juga satu penolakan kontrak di Remix dan simpan tangkapan layar sebagai cadangan.
+Pakai gambar pertama untuk bagian **Implementation** dan dua gambar berikutnya untuk menunjukkan apa yang diuji di bagian **Blockchain Fit** atau demo. Brief UAS memberi maksimum tujuh menit untuk keseluruhan presentasi dan demo. Siapkan satu transaksi yang sudah selesai, tampilkan riwayat, salin tx hash, lalu buka verifikasi dan simulasi perubahan NIM. Tunjukkan satu penolakan kontrak dari aplikasi (NotBorrower) dan riwayat on-chain alat. Simpan tangkapan layar uji Remix sebagai cadangan.
 
 Jika ingin menjalankan cek teknis yang sudah ada, gunakan `npm test` dari folder LabPass. Catat hasil uji otomatis dan hasil uji browser kelompok secara terpisah.

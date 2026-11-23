@@ -10,7 +10,7 @@ import { openChain } from '../lib/chain.js';
 test('Foto per tahap masuk bukti yang sesuai dan terkunci selama konfirmasi', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'labpass-photos-'));
   const db = openDatabase(':memory:');
-  const chain = await openChain(directory, { memory: true });
+  const chain = await openChain(directory, { memory: true, users: db.prepare('SELECT id,role FROM users').all() });
   const service = new LabService(db, directory, chain);
   t.after(async () => {
     await chain.close();

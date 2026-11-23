@@ -10,7 +10,7 @@ import { openChain } from '../lib/chain.js';
 test('Mahasiswa membatalkan sebelum penerimaan, bukti lama tetap utuh dan unit bebas lagi', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'labpass-cancel-'));
   const db = openDatabase(':memory:');
-  const chain = await openChain(directory, { memory: true });
+  const chain = await openChain(directory, { memory: true, users: db.prepare('SELECT id,role FROM users').all() });
   const service = new LabService(db, directory, chain);
   t.after(async () => {
     await chain.close();

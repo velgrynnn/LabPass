@@ -3,6 +3,8 @@ const state={user:null,assets:[],loans:[],health:null,view:'assets',query:'',fil
 let uploadingPhoto=false;
 const labels={AVAILABLE:'Tersedia',RESERVED:'Dipesan',BORROWED:'Dipinjam',INSPECTION:'Perlu pemeriksaan',REQUESTED:'Diajukan',APPROVED:'Disetujui',HANDOVER_PENDING:'Konfirmasi pengambilan',RETURN_REQUESTED:'Menunggu pemeriksaan',RETURN_PENDING:'Konfirmasi pengembalian',CLOSED:'Selesai',REJECTED:'Ditolak',CANCELLED:'Dibatalkan',PENDING:'Menunggu chain',RECORDED:'Tercatat on-chain',FAILED:'Gagal dicatat'};
 const eventLabels={REQUESTED:'Pengajuan dibuat',approve:'Pengajuan disetujui',reject:'Pengajuan ditolak',cancel:'Pengajuan dibatalkan',handover:'Petugas menyiapkan serah terima','confirm-pickup':'Peminjam menerima alat','request-return':'Pengembalian diajukan','inspect-return':'Petugas memeriksa pengembalian','confirm-return':'Pengembalian dikonfirmasi',attachment:'Foto ditambahkan'};
+const chainStatusLabels={None:'Belum ada',Requested:'Diajukan',Approved:'Disetujui',HandoverPending:'Konfirmasi pengambilan',Borrowed:'Dipinjam',ReturnRequested:'Menunggu pemeriksaan',ReturnPending:'Konfirmasi pengembalian',Closed:'Selesai',Rejected:'Ditolak',Cancelled:'Dibatalkan'};
+const methodLabels={requestLoan:'requestLoan()',approve:'approve()',reject:'reject()',cancel:'cancel()',handover:'handover()',confirmPickup:'confirmPickup()',requestReturn:'requestReturn()',inspectReturn:'inspectReturn()',confirmReturn:'confirmReturn()',recordEvidence:'recordEvidence()',releaseAsset:'releaseAsset()'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const short=v=>v?`${v.slice(0,13)}…${v.slice(-7)}`:'Belum ada';
 const date=v=>v?new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(v)):'—';
@@ -43,7 +45,7 @@ async function renderLogin() {
 }
 function shell(){
  const staff=state.user.role==='staff',chain=state.health?.chain;
- app.innerHTML=`<div class="layout"><aside><div class="logo">${logo}</div><div class="workspace">WORKSPACE<span>Laboratorium Radar</span><small>Data simulasi kelompok 4</small></div><nav aria-label="Navigasi utama"><button data-nav="assets" class="${state.view==='assets'?'active':''}"><span>▦</span> Inventaris alat</button><button data-nav="loans" class="${state.view==='loans'?'active':''}"><span>⇄</span> ${staff?'Kelola peminjaman':'Peminjaman saya'}<b>${state.loans.filter(l=>!['CLOSED','REJECTED','CANCELLED'].includes(l.status)).length}</b></button><button data-nav="chain" class="${state.view==='chain'?'active':''}"><span>◇</span> Bukti & jaringan</button></nav><div class="side-bottom"><div class="chain-dot ${chain?.status==='CONNECTED'?'online':''}"></div><span>${chain?.status==='CONNECTED'?'Ethereum lokal aktif':'Chain belum tersedia'}<small>Chain ID 1337 · Custodial</small></span></div></aside><div class="main"><header><div class="breadcrumb">LabPass <span>/</span> ${state.view==='assets'?'Inventaris':state.view==='loans'?'Peminjaman':'Verifikasi'}</div><div class="account"><span class="demo-tag">DEMO LOKAL</span><span class="avatar">${esc(state.user.name[0])}</span><div><strong>${esc(state.user.name.replace(' (akun dummy)','').replace(' (dummy)',''))}</strong><small>${staff?'Petugas lab':'Mahasiswa'}</small></div><button class="icon-button" data-logout aria-label="Keluar">↪</button></div></header><main id="content"></main><footer>LabPass / Kelompok 4 <span>Data dummy, ID alat internal, bukan inventaris resmi ITB.</span></footer></div></div>`;
+ app.innerHTML=`<div class="layout"><aside><div class="logo">${logo}</div><div class="workspace">WORKSPACE<span>Laboratorium Radar</span><small>Data simulasi kelompok 4</small></div><nav aria-label="Navigasi utama"><button data-nav="assets" class="${state.view==='assets'?'active':''}"><span>▦</span> Inventaris alat</button><button data-nav="loans" class="${state.view==='loans'?'active':''}"><span>⇄</span> ${staff?'Kelola peminjaman':'Peminjaman saya'}<b>${state.loans.filter(l=>!['CLOSED','REJECTED','CANCELLED'].includes(l.status)).length}</b></button><button data-nav="chain" class="${state.view==='chain'?'active':''}"><span>◇</span> Bukti & jaringan</button></nav><div class="side-bottom"><div class="chain-dot ${chain?.status==='CONNECTED'?'online':''}"></div><span>${chain?.status==='CONNECTED'?'Ethereum lokal aktif':'Chain belum tersedia'}<small>Kontrak v${esc(chain?.version||'—')} · wallet per akun</small></span></div></aside><div class="main"><header><div class="breadcrumb">LabPass <span>/</span> ${state.view==='assets'?'Inventaris':state.view==='loans'?'Peminjaman':'Verifikasi'}</div><div class="account"><span class="demo-tag">DEMO LOKAL</span><span class="avatar">${esc(state.user.name[0])}</span><div><strong>${esc(state.user.name.replace(' (akun dummy)','').replace(' (dummy)',''))}</strong><small>${staff?'Petugas lab':'Mahasiswa'}</small></div><button class="icon-button" data-logout aria-label="Keluar">↪</button></div></header><main id="content"></main><footer>LabPass / Kelompok 4 <span>Data dummy, ID alat internal, bukan inventaris resmi ITB.</span></footer></div></div>`;
  renderContent();
 }
 function renderContent(){const el=document.getElementById('content');if(state.detail)return renderDetail(el);if(state.view==='assets')renderAssets(el);else if(state.view==='loans')renderLoans(el);else renderChain(el);}
@@ -53,7 +55,29 @@ function renderAssets(el){
  el.innerHTML=`<div class="page-heading"><div><div class="eyebrow">INVENTARIS LAB</div><h1>Temukan alat untuk<br class="desktop"> ide berikutnya.</h1><p class="muted">Pilih unit, cek kelengkapan, dan ajukan peminjaman.</p></div><div class="hero-note"><span class="big-symbol">∿</span><span>Setiap unit punya<br><strong>riwayat sendiri.</strong></span><small>QR / ID internal LabPass</small></div></div><div class="stats"><div><span>Total unit</span><strong>${counts.all}<small>alat dummy</small></strong></div><div><span>Tersedia</span><strong>${counts.available}<small>siap diajukan</small></strong></div><div><span>Dipesan / dipinjam</span><strong>${counts.borrowed}<small>sedang digunakan</small></strong></div><div><span>Perlu pemeriksaan</span><strong>${counts.inspection}<small>belum tersedia</small></strong></div></div><div class="list-bar"><div class="tabs" role="group" aria-label="Filter ketersediaan">${[['ALL','Semua alat'],['AVAILABLE','Tersedia'],['BORROWED','Dipinjam'],['INSPECTION','Pemeriksaan']].map(([id,label])=>`<button data-filter="${id}" class="${state.filter===id?'selected':''}">${label}</button>`).join('')}</div><label class="search"><span>⌕</span><input id="asset-search" placeholder="Cari nama atau ID alat" aria-label="Cari alat" value="${esc(state.query)}"></label></div><div class="asset-grid">${items.map(a=>`<article class="asset-card"><div class="asset-visual ${a.category==='Board praktikum'?'board':a.category==='Radio digital'?'radio':''}"><span class="equipment-symbol">${a.category==='Board praktikum'?'▧':a.category==='Radio digital'?'◉':'∿'}</span><span class="unit-id">${esc(a.id)}</span>${badge(a.status)}</div><div class="asset-body"><small>${esc(a.category)}</small><h3>${esc(a.name)}</h3><p>${esc(a.description)}</p><div class="asset-meta"><span>◌ ${esc(a.condition)}</span><span>${a.components.length} kelengkapan</span></div><button class="${state.user.role==='student'&&a.status==='AVAILABLE'?'primary':'secondary'} full" data-asset="${esc(a.id)}">${state.user.role==='student'&&a.status==='AVAILABLE'?'Lihat & ajukan':'Detail alat'} <span>↗</span></button></div></article>`).join('')||'<div class="empty">Tidak ada alat yang cocok dengan pencarian.</div>'}</div>`;
 }
 function renderLoans(el){el.innerHTML=`<div class="page-heading compact"><div><div class="eyebrow">${state.user.role==='staff'?'PENGELOLAAN':'AKTIVITAS SAYA'}</div><h1>${state.user.role==='staff'?'Peminjaman lab':'Peminjaman saya'}</h1><p class="muted">Pengajuan, serah terima, dan pengembalian dalam satu riwayat.</p></div><button class="secondary" data-refresh>↻ Perbarui</button></div><div class="loan-list">${state.loans.map(l=>`<button class="loan-row" data-loan="${esc(l.id)}"><span class="loan-icon">⇄</span><div class="loan-main"><strong>${esc(l.asset_name)}</strong><small>${esc(l.id)} · ${esc(l.borrower_name)}</small><span>${esc(l.purpose)}</span></div><div class="loan-date"><small>Rencana kembali</small>${date(l.due_date)}</div>${badge(l.status)}<span class="chevron">↗</span></button>`).join('')||'<div class="empty"><span class="big-symbol">⇄</span><h3>Belum ada peminjaman</h3><p>Mulai dengan memilih alat yang tersedia di inventaris.</p><button class="primary" data-nav="assets">Jelajahi alat</button></div>'}</div>`;}
-function renderChain(el){const c=state.health.chain;el.innerHTML=`<div class="page-heading compact"><div><div class="eyebrow">VERIFIKASI BUKTI</div><h1>Riwayat yang bisa diperiksa.</h1><p class="muted">Catatan aplikasi dan bukti di jaringan Ethereum lokal.</p></div></div><div class="network-banner"><div><span class="eyebrow">${c.status==='CONNECTED'?'EVM LOKAL AKTIF':'JARINGAN BELUM TERHUBUNG'}</span><h2>${c.status==='CONNECTED'?'Ganache / Ethereum':'Bukti belum tercatat on-chain'}</h2><p>${c.status==='CONNECTED'?'Transaksi sungguhan di jaringan lokal. Bukan Sepolia atau mainnet.':'Tidak ada klaim sukses blockchain ketika jaringan gagal.'}</p></div><span class="network-icon">◇</span></div><div class="info-grid"><section class="surface"><h3>Informasi jaringan</h3><dl><dt>Chain ID</dt><dd>${c.chainId||'—'}</dd><dt>Alamat kontrak</dt><dd class="mono wrap">${esc(c.address||'Belum tersedia')}</dd><dt>Algoritma bukti</dt><dd>SHA-256 atas JSON kanonik</dd><dt>Belum tercatat</dt><dd>${state.health.pending} rekaman</dd></dl>${state.user.role==='staff'?'<button class="secondary" data-retry>↻ Coba catat ulang bukti</button>':''}</section><section class="surface"><h3>Batas kepercayaan</h3><p>Backend memegang kunci operator. Persetujuan mahasiswa dan petugas berasal dari akun aplikasi, bukan dua tanda tangan wallet independen.</p><p>Hash memeriksa kecocokan data, bukan kebenaran kondisi fisik alat. Database dan arsip asli tetap memerlukan backup.</p><p>Nonce acak melindungi komitmen identitas dari tebakan sederhana. Ini bukan jaminan anonimitas penuh.</p></section></div><section class="surface"><h3>Cara mencoba verifikasi</h3><ol><li>Selesaikan konfirmasi serah terima atau pengembalian.</li><li>Buka detail transaksi dan pilih <strong>Verifikasi</strong> pada rekaman bukti.</li><li>Unduh JSON asli, lalu gunakan simulasi perubahan identitas atau unggah salinan JSON yang diedit.</li></ol></section>`;}
+function renderChain(el){
+ const c=state.health.chain,staff=state.user.role==='staff',connected=c.status==='CONNECTED';
+ const wallets=(c.wallets||[]).map(w=>`<tr><td>${esc((w.name||w.id).replace(' (akun dummy)','').replace(' (dummy)',''))}<small>${esc(w.id)}</small></td><td>${w.role==='staff'?'Staff':'Student'}</td><td class="mono">${esc(short(w.address))}</td></tr>`).join('');
+ const scenarios=state.health.scenarios||{};
+ el.innerHTML=`<div class="page-heading compact"><div><div class="eyebrow">VERIFIKASI BUKTI</div><h1>Riwayat yang bisa diperiksa.</h1><p class="muted">Catatan aplikasi, status peminjaman, dan bukti di jaringan Ethereum lokal.</p></div></div>
+ <div class="network-banner"><div><span class="eyebrow">${connected?'EVM LOKAL AKTIF':'JARINGAN BELUM TERHUBUNG'}</span><h2>${connected?'Ganache / Ethereum':'Bukti belum tercatat on-chain'}</h2><p>${connected?'Transaksi sungguhan di jaringan lokal. Bukan Sepolia atau mainnet.':'Tidak ada klaim sukses blockchain ketika jaringan gagal.'}</p></div><span class="network-icon">◇</span></div>
+ <div class="info-grid"><section class="surface"><h3>Informasi jaringan</h3><dl>
+  <dt>Chain ID</dt><dd>${c.chainId||'—'}</dd>
+  <dt>Kontrak aktif</dt><dd class="mono wrap">${esc(c.address||'Belum tersedia')} ${c.version?`(v${c.version})`:''}</dd>
+  ${(c.legacy||[]).map(l=>`<dt>Kontrak lama</dt><dd class="mono wrap">${esc(l.address)} (v${l.version}, hanya dibaca untuk bukti lama)</dd>`).join('')}
+  <dt>Admin kontrak</dt><dd class="mono wrap">${esc(c.admin||'—')}</dd>
+  <dt>Algoritma bukti</dt><dd>SHA-256 atas JSON kanonik</dd>
+  <dt>Belum tercatat</dt><dd>${state.health.pending} transaksi</dd></dl>
+  ${staff?'<button class="secondary" data-retry>↻ Coba catat ulang transaksi</button>':''}</section>
+ <section class="surface"><h3>Batas kepercayaan</h3>
+  <p>Setiap akun punya alamat wallet sendiri. Kontrak menolak panggilan dari peran atau peminjam yang salah, dan menolak urutan status yang tidak sah.</p>
+  <p>Kunci semua wallet masih dipegang backend (custodial). Kontrak membuktikan wallet mana yang mengirim transaksi, tetapi belum membuktikan orangnya sendiri yang menekan tombol.</p>
+  <p>Hash memeriksa kecocokan data, bukan kebenaran kondisi fisik alat. Database dan arsip asli tetap memerlukan backup.</p></section></div>
+ ${wallets?`<section class="surface"><h3>Wallet akun di chain lokal</h3><p class="small muted">Peran didaftarkan admin kontrak dengan setRole(). Alamat ini yang tercatat sebagai pengirim transaksi.</p><table class="wallet-table"><thead><tr><th>Akun</th><th>Peran on-chain</th><th>Alamat</th></tr></thead><tbody>${wallets}</tbody></table></section>`:''}
+ ${staff&&connected?`<section class="surface"><h3>Uji penolakan kontrak</h3><p class="small muted">Mengirim transaksi yang memang harus ditolak smart contract. Transaksi gagal tetap masuk blok (status 0) sehingga bisa ditunjukkan sebagai bukti. Database tidak berubah.</p>
+  <div class="test-buttons"><button class="secondary" data-reject-test="outsider-record">${esc(scenarios['outsider-record']||'Wallet tanpa peran mencatat bukti')}</button><button class="secondary" data-reject-test="student-approve">${esc(scenarios['student-approve']||'Wallet mahasiswa menyetujui')}</button></div>
+  <p class="small muted">Uji "petugas konfirmasi atas nama peminjam" tersedia di halaman detail peminjaman.</p></section>`:''}
+ <section class="surface"><h3>Cara mencoba verifikasi</h3><ol><li>Selesaikan konfirmasi serah terima atau pengembalian.</li><li>Buka detail transaksi dan pilih <strong>Verifikasi</strong> pada rekaman bukti.</li><li>Unduh JSON asli, lalu gunakan simulasi perubahan identitas atau unggah salinan JSON yang diedit.</li><li>Buka detail alat di inventaris dan pilih <strong>Riwayat on-chain alat</strong> untuk membaca event kontrak per unit.</li></ol></section>`;}
 const checks=r=>r?`<div class="check-summary"><strong>${esc(r.condition)}</strong><p>${esc(r.notes||'Tidak ada catatan tambahan.')}</p>${r.components.map(c=>`<span class="check-chip ${c.received!==c.quantity?'missing':''}">${esc(c.name)}: ${c.received}/${c.quantity}</span>`).join('')}</div>`:'';
 const photoLabels = { CHECKOUT: 'Foto serah terima awal', RETURN: 'Foto pengembalian', LEGACY: 'Foto lama, tahap belum tercatat' };
 function currentPhotoStage(status) {
@@ -86,20 +110,66 @@ function renderPhotos(detail) {
 }
 function renderEvent(event) {
  const receipt=event.tx_hash?`<div class="receipt">
-  <span>Transaksi lokal</span><code>${esc(event.tx_hash)}</code>
-  <span>Blok ${esc(event.block_number??'—')} · Gas ${esc(event.gas_used??'—')}</span>
+  <span>Transaksi lokal${event.chain_method?` · ${esc(methodLabels[event.chain_method]||event.chain_method)}`:''}</span><code>${esc(event.tx_hash)}</code>
+  <span>Blok ${esc(event.block_number??'—')} · Gas ${esc(event.gas_used??'—')}${event.chain_from?` · dari ${esc(short(event.chain_from))}`:''}</span>
   <button class="text-button" data-copy-tx="${esc(event.tx_hash)}">Salin tx hash</button>
  </div>`:'';
+ const error=event.chain_error?`<p class="small warn-text">${esc(event.chain_error)}</p>`:'';
+ let chain='';
+ if(event.evidence_id) chain=`<div class="proof-row">${badge(event.chain_status)}
+   <code title="${esc(event.digest)}">${short(event.digest)}</code>
+   <button class="text-button" data-verify="${esc(event.evidence_id)}">Verifikasi ↗</button>
+   <a class="text-button" href="/api/evidence/${esc(event.evidence_id)}/download">JSON ↓</a>
+  </div>${receipt}${error}`;
+ else if(event.chain_status) chain=`<div class="proof-row">${badge(event.chain_status)}<span class="small muted">Perubahan status di smart contract</span></div>${receipt}${error}`;
  return `<article class="event"><span class="event-dot"></span><div>
   <div class="event-head"><h4>${esc(eventLabels[event.type]||event.type)}</h4>
    <time>${new Date(event.created_at).toLocaleString('id-ID')}</time></div>
   <p>${esc(event.note)}</p><small>${esc(event.actor_name)}</small>
-  ${event.evidence_id?`<div class="proof-row">${badge(event.chain_status)}
-   <code title="${esc(event.digest)}">${short(event.digest)}</code>
-   <button class="text-button" data-verify="${esc(event.evidence_id)}">Verifikasi ↗</button>
-   <a class="text-button" href="/api/evidence/${esc(event.evidence_id)}/download">JSON ↓</a>
-  </div>${receipt}${event.chain_error?`<p class="small warn-text">${esc(event.chain_error)}</p>`:''}`:''}
+  ${chain}
  </div></article>`;
+}
+function renderChainState(detail) {
+ const c=detail.chainState||{},staff=state.user.role==='staff',loan=detail.loan;
+ if(!c.onchain) return `<section class="surface"><h3>Status di smart contract</h3><p class="muted">${esc(c.note||'Peminjaman ini dibuat sebelum kontrak v2. Bukti tetap dicatat on-chain, tetapi statusnya hanya ada di database.')}</p></section>`;
+ if(!c.available) return `<section class="surface"><h3>Status di smart contract</h3><p class="warn-text">Jaringan lokal belum dapat dibaca.${c.error?` ${esc(c.error)}`:''}</p></section>`;
+ const tests=staff?`<div class="test-buttons">
+   <button class="secondary" data-reject-test="staff-confirm" data-reject-loan="${esc(loan.id)}">Uji: petugas konfirmasi atas nama peminjam</button>
+   <button class="secondary" data-reject-test="student-approve" data-reject-loan="${esc(loan.id)}">Uji: wallet peminjam menyetujui sendiri</button>
+  </div><p class="small muted">Transaksi uji harus ditolak kontrak. Status peminjaman tidak berubah.</p>`:'';
+ return `<section class="surface"><h3>Status di smart contract</h3><dl>
+  <dt>Status kontrak</dt><dd>${c.exists?esc(chainStatusLabels[c.status]||c.status):'Belum tercatat'} ${c.exists?`<span class="badge ${c.matchesDatabase?'good':'warn'}">${c.matchesDatabase?'Sama dengan database':'Berbeda / menunggu chain'}</span>`:''}</dd>
+  <dt>Wallet peminjam</dt><dd class="mono wrap">${esc(c.borrower||c.borrowerWallet||'—')}</dd>
+  <dt>Wallet petugas</dt><dd class="mono wrap">${esc(c.staff||'Belum ada')}</dd>
+  <dt>ID di kontrak</dt><dd class="mono">${esc(loan.id)} (bytes32)</dd>
+ </dl>${tests}</section>`;
+}
+function showRejection(r) {
+ openModal(`<div class="eyebrow">UJI PENOLAKAN KONTRAK</div>
+  <h2>Ditolak: ${esc(r.error)}</h2>
+  <p class="muted">${esc(r.description)}</p>
+  <div class="verify-line"><span>Hasil transaksi</span><strong class="${r.status===0?'good-text':'warn-text'}">${r.status===0?'Gagal sesuai harapan (status 0)':'Tidak sesuai harapan'}</strong></div>
+  ${r.statusBefore?`<div class="verify-line"><span>Status peminjaman di kontrak</span><strong>${esc(chainStatusLabels[r.statusBefore]||r.statusBefore)} → ${esc(chainStatusLabels[r.statusAfter]||r.statusAfter)}</strong></div>`:''}
+  <dl><dt>Fungsi dipanggil</dt><dd class="mono">${esc(methodLabels[r.method]||r.method)}</dd>
+   <dt>Pengirim</dt><dd class="mono wrap">${esc(r.caller)} (${esc(r.callerId)})</dd>
+   <dt>Custom error</dt><dd class="mono">${esc(r.error)}</dd>
+   <dt>Tx hash</dt><dd class="mono wrap">${esc(r.txHash)}</dd>
+   <dt>Blok / gas</dt><dd>${esc(r.blockNumber)} / ${esc(r.gasUsed)}</dd></dl>
+  <button class="text-button" data-copy-tx="${esc(r.txHash)}">Salin tx hash</button>
+  <p class="notice">Transaksi dikirim langsung ke kontrak tanpa melewati pengecekan backend. Penolakan berasal dari aturan smart contract.</p>`);
+}
+async function showAssetHistory(id) {
+ const h=await api(`/api/assets/${encodeURIComponent(id)}/chain-history`);
+ const row=item=>{
+  const what=item.kind==='status'?`${esc(chainStatusLabels[item.from]||item.from)} → <strong>${esc(chainStatusLabels[item.to]||item.to)}</strong>`
+   :item.kind==='evidence'?`Bukti <code title="${esc(item.digest)}">${short(item.digest)}</code><small>sebelumnya ${item.previousDigest&&!/^0x0+$/.test(item.previousDigest)?short(item.previousDigest):'— (bukti pertama)'}</small>`
+   :'Petugas menandai alat selesai diperiksa';
+  return `<tr><td>${esc(item.blockNumber)}</td><td>${esc(item.loanId||'—')}</td><td>${what}</td><td>${esc((item.actorName||item.actorId||'—').replace(' (akun dummy)','').replace(' (dummy)',''))}</td><td><button class="text-button" data-copy-tx="${esc(item.txHash)}">${esc(short(item.txHash))}</button></td></tr>`;
+ };
+ openModal(`<div class="eyebrow">PASPOR ALAT · ${esc(h.assetId)}</div><h2>Riwayat on-chain alat</h2>
+  <p class="small muted">Dibaca langsung dari event kontrak (LoanStatusChanged, EvidenceRecorded, AssetReleased) yang difilter berdasarkan ID alat. Peminjaman sebelum kontrak v2 tidak muncul di sini.</p>
+  <dl><dt>Peminjaman aktif</dt><dd>${esc(h.state.activeLoan||'Tidak ada')}</dd><dt>Perlu pemeriksaan</dt><dd>${h.state.needsInspection?'Ya':'Tidak'}</dd><dt>Bukti terakhir</dt><dd class="mono wrap">${/^0x0+$/.test(h.state.lastDigest)?'Belum ada':esc(h.state.lastDigest)}</dd></dl>
+  ${h.items.length?`<div class="table-scroll"><table class="wallet-table"><thead><tr><th>Blok</th><th>Peminjaman</th><th>Kejadian</th><th>Aktor</th><th>Tx</th></tr></thead><tbody>${h.items.map(row).join('')}</tbody></table></div>`:'<p class="muted">Belum ada event kontrak untuk alat ini.</p>'}`);
 }
 function renderDetail(el) {
  const detail=state.detail,loan=detail.loan;
@@ -131,6 +201,7 @@ function renderDetail(el) {
   ${initial?`<h4>Serah terima awal</h4>${checks(initial)}`:'<p class="muted">Belum ada pemeriksaan serah terima.</p>'}
   ${returned?`<h4>Pengembalian</h4>${checks(returned)}`:''}
  </section></div>
+ ${renderChainState(detail)}
  ${renderPhotos(detail)}
  <section class="surface"><h3>Riwayat & bukti pencatatan</h3>
   <div class="timeline">${detail.events.map(renderEvent).join('')}</div>
@@ -162,6 +233,7 @@ function showAsset(id) {
   <p class="muted">${esc(asset.description)}</p>
   <p><strong>Kelengkapan:</strong> ${asset.components.map(component=>`${esc(component.name)} (${component.quantity})`).join(', ')}</p>
   <p class="small muted">Nomor inventaris: ${esc(asset.inventory_number||'Belum ada; menggunakan ID internal LabPass')}</p>
+  <p><button class="text-button" data-asset-history="${esc(asset.id)}">Riwayat on-chain alat ↗</button></p>
   ${action}`);
 }
 function showChecklist(action) {
@@ -251,6 +323,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
   toast('Status terbaru sudah dimuat.');
  }
  else if(b.hasAttribute('data-retry')){busy(b,true);await api('/api/evidence/retry',{method:'POST',body:{}});await refresh();shell();toast('Percobaan pencatatan selesai.');}
+ else if(b.dataset.assetHistory){busy(b,true);await showAssetHistory(b.dataset.assetHistory);}
+ else if(b.dataset.rejectTest){busy(b,true);const r=await api('/api/chain/rejection-test',{method:'POST',body:{scenario:b.dataset.rejectTest,loanId:b.dataset.rejectLoan||null}});busy(b,false);showRejection(r);}
  else if(b.dataset.release){await api(`/api/assets/${b.dataset.release}/release`,{method:'POST',body:{}});modal.close();await refresh();shell();toast('Alat tersedia kembali.');}
  }catch(error){toast(error.message,true);busy(b,false);}});
 document.addEventListener('submit',async e=>{

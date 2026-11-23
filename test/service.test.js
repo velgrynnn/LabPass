@@ -8,7 +8,7 @@ import { LabService, canonical, digest } from '../lib/service.js';
 import { openChain } from '../lib/chain.js';
 
 test('Alur lengkap, hak akses, hash identitas, arsip, dan bukti EVM nyata',async t=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'labpass-test-'));const db=openDatabase(':memory:');const chain=await openChain(dir,{memory:true});const s=new LabService(db,dir,chain);
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'labpass-test-'));const db=openDatabase(':memory:');const chain=await openChain(dir,{memory:true,users:db.prepare('SELECT id,role FROM users').all()});const s=new LabService(db,dir,chain);
  t.after(async()=>{await chain.close();db.close();if(path.basename(dir).startsWith('labpass-test-'))fs.rmSync(dir,{recursive:true,force:true});});
  const staff=db.prepare("SELECT * FROM users WHERE id='staff-zaenal'").get(),a=db.prepare("SELECT * FROM users WHERE id='mhs-1'").get(),b=db.prepare("SELECT * FROM users WHERE id='mhs-2'").get();
  const body={asset_id:'LP-RL-001',purpose:'Pengujian dummy',lecturer:'Dosen dummy',start_date:'2026-11-08',due_date:'2026-11-09'};

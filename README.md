@@ -92,16 +92,18 @@ Petugas dapat menolak pengajuan dengan alasan. Mahasiswa dapat membatalkan sebel
 flowchart LR
   M[Browser mahasiswa] --> API[Backend Node.js]
   P[Browser petugas] --> API
-  API --> DB[(SQLite: akun, alat, peminjaman)]
+  API --> DB[(SQLite: akun, alat, peminjaman, antrian transaksi)]
   API --> A[Arsip JSON asli dan foto privat]
   API --> H[SHA-256 JSON kanonik + nonce acak]
-  H --> C[Kontrak Solidity / Ganache lokal]
-  C --> V[ID bukti ter-hash, digest, waktu pencatatan]
+  API --> W[Wallet lokal per akun - kunci dipegang backend]
+  W --> C[Kontrak LabPass v2 / Ganache lokal]
+  H --> C
+  C --> V[Status peminjaman, peran, event, rantai hash bukti per alat]
 ```
 
 Frontend: HTML/CSS/JavaScript tanpa dependensi CDN. Backend: Node.js HTTP dengan sesi cookie HttpOnly, pemeriksaan peran dan kepemilikan. Database: SQLite dengan foreign key, transaksi, dan indeks unik untuk mencegah dua peminjaman aktif atas satu unit. Blockchain: Ganache EVM lokal, ethers, dan solc. Kontrak dikompilasi dan dipasang otomatis saat aplikasi pertama dijalankan, lalu digunakan kembali setelah restart.
 
-Tabel dibuat dan diisi otomatis dalam `lib/database.js`: `users`, `assets`, `asset_components`, `loans`, `loan_events`, `evidence_records`, `attachments`.
+Tabel dibuat dan diisi otomatis dalam `lib/database.js`: `users`, `assets`, `asset_components`, `loans`, `loan_events`, `evidence_records`, `attachments`, `chain_ops`.
 
 Status peminjaman:
 
@@ -115,13 +117,52 @@ REQUESTED / APPROVED / HANDOVER_PENDING → CANCELLED
 
 Baris kedua pada jalur utama melanjutkan `BORROWED`. Status alat terpisah: AVAILABLE, RESERVED, BORROWED, INSPECTION.
 
+## Smart contract v2
+
+[`contracts/LabPass.sol`](contracts/LabPass.sol) menyimpan status peminjaman yang sama dengan database dan menegakkan siapa boleh memanggil setiap fungsi. Versi pertama disimpan di [`contracts/legacy/LabPassV1.sol`](contracts/legacy/LabPassV1.sol) untuk membaca bukti lama.
+
+| Fungsi | Pemanggil yang diizinkan | Status sebelum → sesudah | Bukti hash |
+|---|---|---|---|
+| `setRole` | admin (akun deploy) | — | — |
+| `requestLoan` | wallet berperan Student | None → Requested | — |
+| `approve` | Staff | Requested → Approved, unit dikunci | — |
+| `reject` | Staff | Requested → Rejected | — |
+| `cancel` | peminjam | Requested/Approved/HandoverPending → Cancelled | jika sudah ada pemeriksaan awal |
+| `handover` | Staff | Approved → HandoverPending | wajib |
+| `confirmPickup` | peminjam | HandoverPending → Borrowed | wajib |
+| `requestReturn` | peminjam | Borrowed → ReturnRequested | — |
+| `inspectReturn` | Staff | ReturnRequested → ReturnPending | wajib |
+| `confirmReturn` | peminjam | ReturnPending → Closed, unit dilepas | wajib |
+| `releaseAsset` | Staff | unit perlu pemeriksaan → boleh dipinjam | — |
+| `recordEvidence` | admin | — (hanya untuk peminjaman sebelum v2) | wajib |
+
+Custom error: `Unauthorized`, `NotStudent`, `NotStaff`, `NotBorrower`, `LoanExists`, `LoanNotFound`, `InvalidStatus(status)`, `AssetUnavailable`, `AssetInUse`, `AlreadyRecorded`, `EmptyDigest`, `ZeroAddress`.
+
+Event: `LoanStatusChanged(loanId, assetId, actor, from, to)`, `EvidenceRecorded(recordId, assetId, loanId, digest, previousDigest, recordedAt)`, `AssetReleased(assetId, actor)`, `RoleSet(account, role)`. `assetId` di-*index*, sehingga riwayat satu alat dapat dibaca langsung dari log kontrak. `previousDigest` menyambungkan setiap bukti dengan bukti sebelumnya pada alat yang sama.
+
+ID peminjaman dan ID alat disimpan sebagai teks `bytes32` (misalnya `LOAN-3470BDDF`, `LP-OSC-001`) agar terbaca di Remix. ID bukti memakai `keccak256(ID bukti)`.
+
+Alur di aplikasi: setiap tindakan disimpan dulu di database, lalu dimasukkan ke tabel `chain_ops` dan dikirim sebagai transaksi dari wallet akun yang bertindak. Jika jaringan gagal, transaksi berstatus FAILED dan transaksi berikutnya untuk alat yang sama ditahan sampai petugas mencoba ulang di **Bukti & jaringan**. Retry memeriksa kontrak dulu agar transaksi yang sudah masuk blok tidak dikirim dua kali.
+
+### Uji penolakan dari aplikasi
+
+Akun petugas dapat menjalankan tiga skenario yang sengaja ditolak kontrak. Transaksinya dikirim langsung ke kontrak, tanpa pengecekan backend, dan tetap masuk blok dengan status 0 sehingga tx hash bisa ditunjukkan:
+
+- **Bukti & jaringan → Wallet tanpa peran mencoba mencatat bukti** → `Unauthorized`.
+- **Bukti & jaringan → Wallet mahasiswa mencoba menyetujui pengajuan** → `NotStaff`.
+- **Detail peminjaman → Uji: petugas konfirmasi atas nama peminjam** → `NotBorrower`. Status peminjaman di kontrak tidak berubah.
+
+### Upgrade dari data lama
+
+Saat server dijalankan dengan folder `data` lama, kontrak v1 tetap ada di chain dan dicatat sebagai `legacy` pada `data/contract.json`. Kontrak v2 dipasang di chain yang sama. Bukti lama tetap diverifikasi dari kontrak v1. Peminjaman yang dibuat sebelum upgrade tetap bisa diselesaikan, tetapi statusnya hanya ada di database dan buktinya dicatat admin melalui `recordEvidence`. Untuk demo yang seluruhnya memakai v2, lakukan [reset demo](#reset-demo-dengan-cadangan).
+
 ## Yang dibuktikan blockchain
 
-Kontrak menerima `keccak256(ID bukti)` dan digest SHA-256 dari JSON bukti lengkap. JSON mencakup identitas peminjam saat pencatatan, unit alat, detail pengajuan, aktor, checklist, hash foto, waktu aplikasi, dan nonce acak. NIM, nama, foto, dan JSON lengkap tetap off-chain. Nonce membantu mencegah tebakan hash sederhana atas identitas yang mudah ditebak.
+Kontrak menerima digest SHA-256 dari JSON bukti lengkap. JSON mencakup identitas peminjam saat pencatatan, unit alat, detail pengajuan, aktor, checklist, hash foto, waktu aplikasi, dan nonce acak. NIM, nama, foto, dan JSON lengkap tetap off-chain. Nonce membantu mencegah tebakan hash sederhana atas identitas yang mudah ditebak.
 
-Kontrak hanya menerima operator yang ditetapkan saat deployment dan tidak menyediakan penimpaan bukti. Koreksi seharusnya berupa kejadian/bukti baru. Tampilan menunjukkan tx hash, block, dan gas dari transaksi nyata pada EVM lokal. Jika chain gagal, bukti berstatus FAILED; petugas dapat mencoba lagi melalui Bukti & jaringan.
+Kontrak juga membuktikan **wallet mana** yang menjalankan setiap perubahan status dan menolak urutan yang tidak sah, bahkan jika pengecekan backend dilewati. Bukti tidak bisa ditimpa; koreksi seharusnya berupa kejadian/bukti baru. Tampilan menunjukkan tx hash, block, gas, dan alamat pengirim dari transaksi nyata pada EVM lokal.
 
-**Model kepercayaan MVP adalah backend-custodial:** satu backend memegang kunci operator. Konfirmasi dua pihak berasal dari dua akun aplikasi, bukan dua tanda tangan wallet independen. Administrator backend tetap dipercaya mengautentikasi pengguna dan memasukkan data. Ini belum membuktikan bahwa peminjam benar-benar menerima alat secara fisik, dan belum memberikan ketahanan terhadap pengelola komputer yang dapat mengganti seluruh database serta chain lokal. Database dengan audit log tetap layak menjadi pembanding.
+**Model kepercayaan MVP: wallet per akun, tetapi custodial.** Setiap akun punya alamat sendiri, namun kunci semua wallet dibuat dari satu seed yang dipegang backend. Artinya kontrak membuktikan aturan dan urutan dijalankan oleh wallet yang tepat, tetapi belum membuktikan bahwa orangnya sendiri yang menekan tombol, karena backend tetap bisa menandatangani atas nama siapa pun. Administrator backend tetap dipercaya mengautentikasi pengguna dan memasukkan data. Ini belum membuktikan bahwa peminjam benar-benar menerima alat secara fisik, dan belum tahan terhadap pengelola komputer yang mengganti seluruh database serta chain lokal. Langkah lanjut untuk menghilangkan ketergantungan ini adalah wallet milik pengguna (misalnya MetaMask) dan jaringan yang tidak dikendalikan satu pihak.
 
 Jika NIM pada tabel akun diubah, pemeriksaan identitas saat ini akan berbeda dari snapshot bukti lama. Arsip asli menyimpan identitas pada saat pencatatan; komitmen on-chain membantu memeriksa keutuhannya. **Hash tidak dapat mengembalikan NIM atau foto yang hilang.** Arsip asli dan backup tetap diperlukan. Untuk demo perubahan kandidat, sistem tidak menyentuh database atau arsip asli.
 
@@ -133,8 +174,8 @@ Folder `data/` diabaikan Git dan berisi:
 - `archives/`: JSON kanonik bukti asli, tidak ditimpa ketika retry.
 - `uploads/`: foto dengan nama file internal acak.
 - `chain/`: riwayat EVM lokal.
-- `contract.json`: alamat kontrak dan informasi deployment.
-- `wallet-seed.json`: rahasia pembentuk akun operator lokal. Jangan dibagikan atau diunggah.
+- `contract.json`: alamat kontrak v2, alamat kontrak lama (legacy), daftar wallet akun, dan informasi deployment.
+- `wallet-seed.json`: rahasia pembentuk akun admin dan semua wallet akun lokal. Jangan dibagikan atau diunggah.
 
 Hentikan aplikasi, lalu salin **seluruh folder data** untuk backup yang konsisten. Jangan hanya menyalin SQLite atau hanya chain. Jangan menghapus `wallet-seed.json` ketika memakai chain lama. Saat memindahkan kode untuk kerja kelompok, bagikan kode serta `package-lock.json`; setiap anggota dapat menghasilkan data dan chain lokal sendiri.
 
@@ -144,9 +185,9 @@ Menghapus folder data berarti menghilangkan seluruh transaksi demo dan bukti lok
 
 Untuk demo smart contract di browser, ikuti [Panduan uji Remix VM](PANDUAN-TESTING.md#uji-smart-contract-di-remix-vm). Kontrak yang dipakai adalah [LabPass.sol](contracts/LabPass.sol). Untuk menguji alur aplikasi lengkap dengan Ganache lokal, ikuti [uji utama](PANDUAN-TESTING.md#uji-utama).
 
-`npm test` menjalankan pengujian dengan database dan chain terpisah di direktori sementara. `npm run check` memeriksa sintaks JavaScript.
+`npm test` menjalankan 22 pengujian dengan database dan chain terpisah di direktori sementara. `npm run check` memeriksa sintaks JavaScript.
 
-Teruji: hak akses pemilik/petugas, pemesanan unit eksklusif, kelengkapan wajib, konfirmasi peminjam, lifecycle pengembalian, deteksi perubahan identitas/arsip/JSON kandidat, hash foto, kontrak menolak operator lain dan overwrite, kegagalan chain serta retry, dan persistensi kontrak/operator/bukti setelah restart. Browser juga diuji untuk alur pengajuan sampai selesai, verifikasi kandidat yang diubah, dan tampilan 390 px.
+Teruji: hak akses pemilik/petugas, pemesanan unit eksklusif, kelengkapan wajib, konfirmasi peminjam, lifecycle pengembalian, deteksi perubahan identitas/arsip/JSON kandidat, hash foto, kegagalan chain serta retry, dan persistensi kontrak/admin/wallet/bukti setelah restart. Khusus kontrak v2 (`test/contract-v2.test.js`): status kontrak sama dengan database di setiap tahap dan dikirim dari wallet aktor, penolakan `NotStaff`, `NotStudent`, `NotBorrower`, `InvalidStatus`, `LoanNotFound`, `LoanExists`, `AssetUnavailable`, `AssetInUse`, `Unauthorized`, `EmptyDigest`, rantai `previousDigest` per alat, uji penolakan dari aplikasi menghasilkan tx gagal (status 0) di blok, peminjaman lama tetap berjalan, dan retry tidak mengirim transaksi ganda. `test/chain.test.js` juga menguji upgrade dari folder data v1. Browser juga diuji untuk alur pengajuan sampai selesai, verifikasi kandidat yang diubah, dan tampilan 390 px.
 
 Ganache dapat menampilkan peringatan µWS lalu memakai implementasi JavaScript pada Node 22 Windows. SQLite juga dapat menampilkan ExperimentalWarning. Pada lingkungan yang diuji, keduanya tidak menghalangi aplikasi atau pengujian.
 
